@@ -6,6 +6,8 @@
 
 import argparse
 import os
+import multiprocessing
+import random
 
 from absl import logging
 
@@ -83,7 +85,9 @@ def _cm_options() -> str:
 			 	"MethylatedProteinCterm"
 		) )
 
-def _args() -> Tuple[ str, str, List[ str ], str, str, str, str, bool, bool ]:
+def _args() -> Tuple[
+		str, str, List[ str ], str, str, str, str, bool, bool, int, int
+	]:
 	r""" Process input arguments for alignment
 	
 	Arguments defined with:
@@ -163,7 +167,8 @@ def _args() -> Tuple[ str, str, List[ str ], str, str, str, str, bool, bool ]:
 			'--rosetta',
 			metavar="/path/to/rosetta/main/source/bin/",
 			type=str,
-			help=(	"(required) Location of the Rosetta binaries "
+			help=(
+					"(required) Location of the Rosetta binaries "
 					"(main/source/bin)"
 				),
 			required=True,
@@ -195,7 +200,8 @@ def _args() -> Tuple[ str, str, List[ str ], str, str, str, str, bool, bool ]:
 			'--output_prefix',
 			metavar="PREFIX_",
 			type=str,
-			help=( 	"(optional) Prefix for output PDB. By default output "
+			help=(
+					"(optional) Prefix for output PDB. By default output "
 					"names are identical to input names; default: None"
 				),
 			default="",
@@ -205,7 +211,8 @@ def _args() -> Tuple[ str, str, List[ str ], str, str, str, str, bool, bool ]:
 	parser.add_argument(
 			'-s',
 			'--skip_s2',
-			help=(	"(optional) Whether to skip the homology modeling"
+			help=(
+					"(optional) Whether to skip the homology modeling"
 					"stage (threading only); default: False"
 				),
 			action="store_true",
@@ -218,6 +225,38 @@ def _args() -> Tuple[ str, str, List[ str ], str, str, str, str, bool, bool ]:
 			help="(optional) Set verbosity",
 			action="store_true",
 			dest="verbose"
+		)
+
+	parser.add_argument(
+			'-n',
+			'--n_models',
+			help="(optional) Number of models (default=1)",
+			type=int,
+			default=1,
+			dest="n_models"
+		)
+
+	parser.add_argument(
+			'--n_workers',
+			help=(
+					"(optional) Number of CPU cores for modeling (default=1)"
+					"Set to -1 to use all available cores"
+				),
+			type=int,
+			default=1,
+			dest="n_workers"
+		)
+
+	parser.add_argument(
+			'--max_templates',
+			help=(
+					"(optional) Maximum number of templates for modeling"
+					"A value of 0 indicates all templates will be used"
+					" (default=0)"
+				),
+			type=int,
+			default=0,
+			dest="max_templates"
 		)
 
 	args = parser.parse_args()
@@ -309,7 +348,10 @@ def _cm(
 		xml: str,
 		fasta: str,
 		rosetta: str,
-		exe_type: str
+		n_models: int,
+		exe_type: str,
+		extra_options: List[ str ]
+
 	) -> NoReturn:
 	r""" Uses Rosetta to close gaps and refine threaded models
 
@@ -318,7 +360,8 @@ def _cm(
 	xml: XML file
 	fasta : Reference FASTA filename
 	rosetta : Rosetta path exe
-	name : Name of the template
+	n_models : Number of models to generate
+	n_workers : Number of CPU cores to use
 	exe_type : Type of Rosetta executable to use
 
 	Returns
@@ -327,15 +370,49 @@ def _cm(
 
 	"""
 
-	cmd = " ".join( (
+
+
+	return " ".join( (
 			f"{ rosetta }/rosetta_scripts.{ exe_type }",
 			f"-in:file:fasta { fasta }",
 			f"-parser:protocol { xml }",
-			_cm_options()
+			f"-out:nstruct { n_models }",
+			_cm_options(),
+			"".join( extra_options )
 		) )
-	_print_and_run( logging.debug, cmd )
 
-def _setup_xml(
+def _write_xml(
+		in_xml: str,
+		lines: List[ str ],
+		out_xml: str
+	) -> NoReturn:
+	r""" Generates an XML file for multi-template modeling
+
+	Parameters
+	----------
+	in_xml: Input XML file
+	lines : Template lines to add to XML file
+	out_xml : Output XML file
+
+	Returns
+	----------
+	None
+
+	"""
+
+	with open( out_xml, "w" ) as outfile:
+		with open( in_xml ) as infile:
+			for line in infile:
+				if line.strip().startswith( "<Template" ):
+					for l in lines:
+						outfile.write( l )
+				else:
+					outfile.write( line )
+	with open( out_xml ) as infile:
+		for i, line in enumerate( infile ):
+			logging.debug( "{}: {}".format( i, line.rstrip() ) )
+
+def _setup_xml_all_templates(
 		in_xml: str,
 		pdbs: List[ str ],
 		out_xml: str
@@ -355,18 +432,57 @@ def _setup_xml(
 	"""
 
 	pdb_lines = [ f"\t\t<Template pdb=\"{ p }.pdb\"/>\n" for p in pdbs ]
+	_write_xml( in_xml, pdb_lines, out_xml )
+	
 
-	with open( out_xml, "w" ) as outfile:
-		with open( in_xml ) as infile:
-			for line in infile:
-				if line.strip().startswith( "<Template" ):
-					for line in pdb_lines:
-						outfile.write( line )
-				else:
-					outfile.write( line )
-	with open( out_xml ) as infile:
-		for i, line in enumerate( infile ):
-			logging.debug( "{}: {}".format( i, line.rstrip() ) )
+def _setup_xml_subset(
+		in_xml: str,
+		n_pdbs: int,
+		out_xml: str
+	) -> NoReturn:
+	r""" Generates an XML file for multi-template modeling
+
+	Parameters
+	----------
+	in_xml: Input XML file
+	names : List of templates
+	out_xml : Output XML file
+
+	Returns
+	----------
+	None
+
+	"""
+
+	pdb_lines = [ f"\t\t<Template pdb=%%m{ i }%%/>\n" for i in range( n_pdbs ) ]
+	_write_xml( in_xml, pdb_lines, out_xml )
+
+def _pick_pdbs(
+		names: List[ str ],
+		n_templates: int,
+		allow_duplicates: bool=True
+	) -> str:
+	r""" Randomly picks PDB files and write command-line options
+
+	Parameters
+	----------
+	names : PDB names to choose from (lacking ".pdb" suffix)
+	n_templates : Number of templates to choose
+	allow_duplicates : Whether same PDB can show up multiple times
+
+	Returns
+	----------
+	cmd_option : String with command-line option for parser
+
+	"""
+
+	cmd_opt = [ "-parser:script_vars" ]
+	while len( cmd_opt ) <= n_templates:
+		rand_pdb = random.choice( names )
+		if rand_pdb in cmd_opt and not allow_duplicates:
+			continue
+		cmd_opt.append( f"m{ len( cmd_opt ) - 1 }={ rand_pdb }.pdb" )
+	return " ".join( cmd_opt )
 
 def _main() -> NoReturn:
 	r""" Main function for reading and writing outputs.
@@ -396,6 +512,17 @@ def _main() -> NoReturn:
 	if args[ "verbose" ]:
 		logging.set_verbosity( logging.DEBUG )
 
+	if args[ "n_workers" ] == -1:
+		args[ "n_workers" ] = multiprocessing.cpu_count()
+
+	if len( args[ "templates" ] ) < args[ "max_templates" ]:
+		logging.warning( (
+				"Found fewer templates than number specified by "
+				"--max_templates. Automatically reducing the maximum "
+				"number of templates to match this value."
+			) )
+		args[ "max_templates" ] = 0
+
 	# Iterate over templates
 	names = []
 	for template in args[ "templates" ]:
@@ -423,20 +550,56 @@ def _main() -> NoReturn:
 				exe_type	
 			)
 
-	# Step 2: Set up the XML file
-	_setup_xml(
-			args[ "xml" ],
-			names,
-			xmlfile
-		)
+	# If only a subset of templates should be used
+	# Run the command once
 
-	# Step 3: Run RosettaCM
-	_cm(
-			xmlfile,
-			args[ "fasta" ],
-			args[ "rosetta" ],
-			exe_type
-		)
+	cmds = []
+	if args[ "max_templates" ] == 0:
+
+		_setup_xml_all_templates(
+				args[ "xml" ],
+				names,
+				xmlfile
+			)
+
+		# Step 3: Run RosettaCM
+		for i in range( args[ "n_workers" ] ):
+
+			n_jobs = args[ "n_models" ] // args[ "n_workers" ]
+			if args[ "n_models" ] % args[ "n_workers" ] > i:
+				n_jobs += 1
+			cmd = _cm(
+					xmlfile,
+					args[ "fasta" ],
+					args[ "rosetta" ],
+					n_jobs,
+					exe_type,
+					[ f"-out:prefix { i }_" ]
+				)
+			cmds.append( cmd )
+			logging.debug( "{} {}".format( i, cmd ) )
+	else:
+		_setup_xml_subset(
+				args[ "xml" ],
+				args[ "max_templates" ],
+				xmlfile
+			)
+
+		for i in range( args[ "n_models" ] ):
+			cmd = _cm(
+					xmlfile,
+					args[ "fasta" ],
+					args[ "rosetta" ],
+					1,
+					exe_type,
+					[
+							_pick_pdbs( names, args[ "max_templates" ] ),
+							f"-out:prefix { i }_"
+						]
+				)
+			cmds.append( cmd )
+			logging.debug( "{} {}".format( i, cmd ) )
+
 
 	# Step 5: Clean up
 	for pdb in names:
