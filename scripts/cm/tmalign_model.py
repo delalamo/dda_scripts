@@ -25,9 +25,63 @@ def _print_and_run(
 	Returns
 	----------
 	None
+
 	"""
+
 	fn( cmd )
 	os.system( cmd )
+
+def _cm_options() -> str:
+	r""" Small function for printing and calling a command
+
+	Parameters
+	----------
+	None
+
+	Returns
+	----------
+	opts : String with options for RosettaCM
+	
+	"""
+
+	return " ".join( (
+			
+			# Relax options
+			"-relax:minimize_bond_angles",
+			"-relax:minimize_bond_lengths",
+			"-relax:jump_move true",
+			"-relax:min_type lbfgs_armijo_nonmonotone",
+			"-default_max_cycles 200",
+
+			# Reduce memory footprint
+			 "-chemical:exclude_patches ",
+			 	"LowerDNA",
+			 	"UpperDNA",
+			 	"Cterm_amidation",
+			 	"SpecialRotamer",
+			 	"VirtualBB",
+			 	"ShoveBB",
+			 	"VirtualDNAPhosphate",
+			 	"VirtualNTerm",
+			 	"CTermConnect",
+			 	"sc_orbitals",
+			 	"pro_hydroxylated_case1",
+			 	"pro_hydroxylated_case2",
+			 	"ser_phosphorylated",
+			 	"thr_phosphorylated",
+			 	"tyr_phosphorylated",
+			 	"tyr_sulfated",
+			 	"lys_dimethylated",
+			 	"lys_monomethylated",
+			 	"lys_trimethylated",
+			 	"lys_acetylated",
+			 	"glu_carboxylated",
+			 	"cys_acetylated"
+			 	"tyr_diiodinated",
+			 	"N_acetylated",
+			 	"C_methylamidated",
+			 	"MethylatedProteinCterm"
+		) )
 
 def _args() -> Tuple[ str, str, List[ str ], str, str, str, str, bool, bool ]:
 	r""" Process input arguments for alignment
@@ -59,6 +113,7 @@ def _args() -> Tuple[ str, str, List[ str ], str, str, str, str, bool, bool ]:
 		output_dir : Name of output PDB
 		skip_s2 : Boolean of whether to skip the second stage
 		verbose : Whether to print debug statements
+	
 	"""
 
 	parser = argparse.ArgumentParser(
@@ -275,7 +330,8 @@ def _cm(
 	cmd = " ".join( (
 			f"{ rosetta }/rosetta_scripts.{ exe_type }",
 			f"-in:file:fasta { fasta }",
-			f"-parser:protocol { xml }"
+			f"-parser:protocol { xml }",
+			_cm_options()
 		) )
 	_print_and_run( logging.debug, cmd )
 
@@ -313,6 +369,20 @@ def _setup_xml(
 			logging.debug( "{}: {}".format( i, line.rstrip() ) )
 
 def _main() -> NoReturn:
+	r""" Main function for reading and writing outputs.
+	During execution, several temporary files will be written
+	in the current working directory. These will then be deleter
+	during cleanup.
+
+	Parameters
+	----------
+	None
+
+	Returns
+	----------
+	None
+
+	"""
 
 	# Setting temporary names
 	grishinfile = "temp.grishin"
