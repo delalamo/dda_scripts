@@ -93,17 +93,6 @@ def _args() -> Tuple[
 		str, str, List[ str ], str, str, str, str, bool, bool, int, int
 	]:
 	r""" Process input arguments for alignment
-	
-	Arguments defined with:
-		--fasta Fasta file
-		--pdb Reference PDB file
-		--templates List of reference PDB files
-		--rosetta Rosetta directory
-		--tmalign Template PDBs
-		--xml RosettaCM XML file
-		--output Location of output PDBs
-		--skip_s2 Whether to skip the second stage of modeling (RosettaCM)
-		--verbose Whether to print all debug statements
 
 	Parameters
 	----------
@@ -111,16 +100,7 @@ def _args() -> Tuple[
 
 	Returns
 	----------
-	vals : Dictionary containing the following elements
-		fasta : Location and name of fasta file
-		ref_pdb : Location and name of reference PDB
-		templates: Directory containing reference PDBs for threading
-		rosetta_bin : Location of Rosetta (link to main/source/bin)
-		tmalign_exe : Location of TM-Align executable
-		xml : Name and location of XML file
-		output_dir : Name of output PDB
-		skip_s2 : Boolean of whether to skip the second stage
-		verbose : Whether to print debug statements
+	vals : Dictionary containing organized command-line options
 	
 	"""
 
@@ -173,7 +153,7 @@ def _args() -> Tuple[
 			type=str,
 			help=(
 					"(required) Location of the Rosetta binaries "
-					"(main/source/bin)"
+					"(path/to/rosetta/main/source/bin)"
 				),
 			required=True,
 			dest="rosetta"
@@ -200,20 +180,18 @@ def _args() -> Tuple[
 		)
 
 	parser.add_argument(
-			'-o',
-			'--output_prefix',
-			metavar="PREFIX_",
+			'--exe',
+			metavar="[default/mpi/etc].[macos/linux][clang/gcc][release/debug]",
 			type=str,
 			help=(
 					"(optional) Prefix for output PDB. By default output "
 					"names are identical to input names; default: None"
 				),
-			default="",
-			dest="output"
+			default="default.macosclangrelease",
+			dest="exe"
 		)
 
 	parser.add_argument(
-			'-s',
 			'--skip_s2',
 			help=(
 					"(optional) Whether to skip the homology modeling"
@@ -351,7 +329,7 @@ def _thread(
 	template : Template PDB for threading
 	grishinfile : Filename for grishin file
 	name : Name of the template
-	exe_type : Type of Rosetta executable to use
+	exe_type : Rosetta executable to use (e.g. "default.macosclangrelease")
 
 	Returns
 	----------
@@ -359,11 +337,12 @@ def _thread(
 
 	"""
 
-	cmd = " ".join( ( 	f"{ rosetta }/partial_thread.{ exe_type }",
-						f"-in:file:fasta { fasta }",
-						f"-in:file:template_pdb { template }",
-						f"-in:file:alignment { grishinfile }",
-						"-out:level 100"
+	cmd = " ".join( (
+			f"{ rosetta }/partial_thread.{ exe_type }",
+			f"-in:file:fasta { fasta }",
+			f"-in:file:template_pdb { template }",
+			f"-in:file:alignment { grishinfile }",
+			"-out:level 100"
 		) )
 
 	_print_and_run( logging.debug, cmd )
@@ -376,7 +355,7 @@ def _cm(
 		exe_type: str,
 		extra_options: List[ str ]
 
-	) -> NoReturn:
+	) -> str:
 	r""" Uses Rosetta to close gaps and refine threaded models
 
 	Parameters
@@ -390,7 +369,7 @@ def _cm(
 
 	Returns
 	----------
-	None
+	Command for RosettaCM
 
 	"""
 
@@ -446,7 +425,7 @@ def _setup_xml_all_templates(
 	Parameters
 	----------
 	in_xml: Input XML file
-	names : List of templates
+	pdbs : List of template names
 	out_xml : Output XML file
 
 	Returns
@@ -469,7 +448,7 @@ def _setup_xml_subset(
 	Parameters
 	----------
 	in_xml: Input XML file
-	names : List of templates
+	n_pdbs : Number of templates to use in XML file
 	out_xml : Output XML file
 
 	Returns
@@ -586,8 +565,6 @@ def _main() -> NoReturn:
 	xmlfile = "temp.xml"
 	logfile = "logfile.txt"
 
-	exe_type="default.macosclangrelease"
-
 	# Fetch arguments
 	args = _args()
 
@@ -617,7 +594,7 @@ def _main() -> NoReturn:
 				template,
 				grishinfile,
 				names[ -1 ],
-				exe_type	
+				args[ "exe" ]
 			)
 
 	logging.info( "Setting up XML script" )
@@ -642,7 +619,7 @@ def _main() -> NoReturn:
 					args[ "fasta" ],
 					args[ "rosetta" ],
 					n_jobs,
-					exe_type,
+					args[ "exe" ],
 					[ f"-out:prefix { i }_" ]
 				) )
 	else:
@@ -658,7 +635,7 @@ def _main() -> NoReturn:
 					args[ "fasta" ],
 					args[ "rosetta" ],
 					1,
-					exe_type,
+					args[ "exe" ],
 					[
 							_pick_pdbs( names, args[ "max_templates" ] ),
 							f"-out:prefix { i }_"
@@ -677,13 +654,6 @@ def _main() -> NoReturn:
 		) )
 	_multiprocessing( args[ "n_workers" ], cmds )
 
-	# Step 5: Clean up
-	'''
-	for pdb in names:
-		_print_and_run( logging.debug, f"rm { pdb }.pdb" )
-	_print_and_run( logging.debug, f"rm { xmlfile }" )
-	_print_and_run( logging.debug, f"rm { grishinfile }" )
-	'''
 if __name__ == "__main__":
 	_main()
 
