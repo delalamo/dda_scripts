@@ -55,8 +55,10 @@ def _args() -> Tuple[ str, str, List[ str ], str, str, str, str, bool, bool ]:
 		templates: Directory containing reference PDBs for threading
 		rosetta_bin : Location of Rosetta (link to main/source/bin)
 		tmalign_exe : Location of TM-Align executable
-		output_dir : Name of outpud PDB
+		xml : Name and location of XML file
+		output_dir : Name of output PDB
 		skip_s2 : Boolean of whether to skip the second stage
+		verbose : Whether to print debug statements
 	"""
 
 	parser = argparse.ArgumentParser(
@@ -187,6 +189,7 @@ def _tmalign_to_grishin(
 	Returns
 	----------
 	None
+
 	"""
 
 	cmd = " ".join( ( tmalign, pdb1, pdb2 ) )
@@ -247,13 +250,10 @@ def _thread(
 
 	_print_and_run( logging.debug, cmd )
 
-	_print_and_run( logging.debug, f"rm { grishinfile }" )
-
 def _cm(
 		xml: str,
 		fasta: str,
 		rosetta: str,
-		name: str,
 		exe_type: str
 	) -> NoReturn:
 	r""" Uses Rosetta to close gaps and refine threaded models
@@ -275,17 +275,49 @@ def _cm(
 	cmd = " ".join( (
 			f"{ rosetta }/rosetta_scripts.{ exe_type }",
 			f"-in:file:fasta { fasta }",
-			f"-parser:protocol { xml }",
-			f"-parser:script_vars model={ name }.pdb",
-			f"-out:prefix { name }_"
+			f"-parser:protocol { xml }"
 		) )
 	_print_and_run( logging.debug, cmd )
+
+def _setup_xml(
+		in_xml: str,
+		pdbs: List[ str ],
+		out_xml: str
+	) -> NoReturn:
+	r""" Generates an XML file for multi-template modeling
+
+	Parameters
+	----------
+	in_xml: Input XML file
+	names : List of templates
+	out_xml : Output XML file
+
+	Returns
+	----------
+	None
+
+	"""
+
+	pdb_lines = [ f"\t\t<Template pdb=\"{ p }.pdb\"/>\n" for p in pdbs ]
+
+	with open( out_xml, "w" ) as outfile:
+		with open( in_xml ) as infile:
+			for line in infile:
+				if line.strip().startswith( "<Template" ):
+					for line in pdb_lines:
+						outfile.write( line )
+				else:
+					outfile.write( line )
+	with open( out_xml ) as infile:
+		for i, line in enumerate( infile ):
+			logging.debug( "{}: {}".format( i, line.rstrip() ) )
 
 def _main() -> NoReturn:
 
 	# Setting temporary names
 	grishinfile = "temp.grishin"
-	pdbfile = "temp.pdb"
+	xmlfile = "temp.xml"
+
 	exe_type="default.macosclangrelease"
 
 	# Fetch arguments
@@ -301,7 +333,7 @@ def _main() -> NoReturn:
 		# Remove the directory and filetype from name
 		names.append( os.path.basename( template ).split( "." )[ 0 ] )
 
-		# Step 1: Run structural alignment using TM-Align
+		# Step 1a: Run structural alignment using TM-Align
 		# Generates a grishin file for RosettaCM
 		_tmalign_to_grishin(
 				args[ "tmalign" ],
@@ -311,24 +343,36 @@ def _main() -> NoReturn:
 				names[ -1 ]
 			)
 
-		# Step 2: Thread the sequence of interest onto the template
+		# Step 1b: Thread the sequence of interest onto the template
 		_thread(
 				args[ "rosetta" ],
 				args[ "fasta" ],
 				template,
 				grishinfile,
 				names[ -1 ],
-				exe_type=exe_type				
+				exe_type	
 			)
 
-		# Step 3: Run RosettaCM
-		_cm(
-				args[ "xml" ],
-				args[ "fasta" ],
-				args[ "rosetta" ],
-				names[ -1 ],
-				exe_type=exe_type
-			)
+	# Step 2: Set up the XML file
+	_setup_xml(
+			args[ "xml" ],
+			names,
+			xmlfile
+		)
+
+	# Step 3: Run RosettaCM
+	_cm(
+			xmlfile,
+			args[ "fasta" ],
+			args[ "rosetta" ],
+			exe_type
+		)
+
+	# Step 5: Clean up
+	for pdb in names:
+		_print_and_run( logging.debug, f"rm { pdb }.pdb" )
+	_print_and_run( logging.debug, f"rm { xmlfile }" )
+	_print_and_run( logging.debug, f"rm { grishinfile }" )
 	
 if __name__ == "__main__":
 	_main()
