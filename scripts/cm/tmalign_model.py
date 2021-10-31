@@ -7,7 +7,9 @@
 import argparse
 import os
 import multiprocessing
+import queue
 import random
+import time
 
 from absl import logging
 
@@ -56,7 +58,7 @@ def _cm_options() -> str:
 			"-default_max_cycles 200",
 
 			# Reduce memory footprint
-			 "-chemical:exclude_patches ",
+			"-chemical:exclude_patches ",
 			 	"LowerDNA",
 			 	"UpperDNA",
 			 	"Cterm_amidation",
@@ -82,7 +84,9 @@ def _cm_options() -> str:
 			 	"tyr_diiodinated",
 			 	"N_acetylated",
 			 	"C_methylamidated",
-			 	"MethylatedProteinCterm"
+			 	"MethylatedProteinCterm",
+			"-mute core scoring",
+			"-out:level 100"
 		) )
 
 def _args() -> Tuple[
@@ -261,7 +265,26 @@ def _args() -> Tuple[
 
 	args = parser.parse_args()
 
-	return { arg: getattr( args, arg ) for arg in vars( args ) }
+	args = { arg: getattr( args, arg ) for arg in vars( args ) }
+
+	# Now go through and clean things up
+	if args[ "verbose" ]:
+		logging.set_verbosity( logging.DEBUG )
+	else:
+		logging.set_verbosity( logging.INFO )
+
+	if args[ "n_workers" ] < 1:
+		logging.warning( "--n_workers must be positive! Setting to 1" )
+
+	if len( args[ "templates" ] ) < args[ "max_templates" ]:
+		logging.warning( (
+				"Found fewer templates than number specified by "
+				"--max_templates. Automatically reducing the maximum "
+				"number of templates to match this value."
+			) )
+		args[ "max_templates" ] = 0
+
+	return args
 
 def _tmalign_to_grishin(
 		tmalign: str,
@@ -340,6 +363,7 @@ def _thread(
 						f"-in:file:fasta { fasta }",
 						f"-in:file:template_pdb { template }",
 						f"-in:file:alignment { grishinfile }",
+						"-out:level 100"
 		) )
 
 	_print_and_run( logging.debug, cmd )
@@ -378,7 +402,7 @@ def _cm(
 			f"-parser:protocol { xml }",
 			f"-out:nstruct { n_models }",
 			_cm_options(),
-			"".join( extra_options )
+			" ".join( extra_options )
 		) )
 
 def _write_xml(
@@ -454,7 +478,7 @@ def _setup_xml_subset(
 
 	"""
 
-	pdb_lines = [ f"\t\t<Template pdb=%%m{ i }%%/>\n" for i in range( n_pdbs ) ]
+	pdb_lines = [ f"\t\t<Template pdb=\"%%m{ i }%%\"/>\n" for i in range( n_pdbs ) ]
 	_write_xml( in_xml, pdb_lines, out_xml )
 
 def _pick_pdbs(
@@ -484,6 +508,63 @@ def _pick_pdbs(
 		cmd_opt.append( f"m{ len( cmd_opt ) - 1 }={ rand_pdb }.pdb" )
 	return " ".join( cmd_opt )
 
+def _run_cmd(
+		jobs_to_do,
+		jobs_done
+	) -> bool:
+	while True:
+		try:
+			task = jobs_to_do.get_nowait()
+		except queue.Empty:
+			break
+		else:
+			os.system( task )
+			jobs_done.put( f"{ multiprocessing.current_process().name }:\n\t{ task }" )
+			time.sleep( 5 )
+	return True
+
+def _multiprocessing(
+		n_workers: int,
+		cmds: List[ str ]
+	) -> NoReturn:
+	r""" Main function that manages all RosettaCM runs
+	Code templated from journaldev.com
+
+	Parameters
+	----------
+	n_workers : Number of cores to run
+	cmds : List of strings with commands to execute
+
+	Returns
+	----------
+	None
+
+	"""
+
+	# Set up variables
+	jobs_to_do = multiprocessing.Queue()
+	jobs_done = multiprocessing.Queue()
+	processes = []
+	for cmd in cmds:
+		jobs_to_do.put( cmd )
+
+	# Run
+	for w in range( n_workers ):
+		p = multiprocessing.Process(
+			target=_run_cmd,
+			args=(
+					jobs_to_do,
+					jobs_done
+				) )
+		processes.append( p )
+		p.start()
+
+	for p in processes:
+		p.join()
+
+	while not jobs_done.empty():
+		print( jobs_done.get() )
+
 def _main() -> NoReturn:
 	r""" Main function for reading and writing outputs.
 	During execution, several temporary files will be written
@@ -503,32 +584,21 @@ def _main() -> NoReturn:
 	# Setting temporary names
 	grishinfile = "temp.grishin"
 	xmlfile = "temp.xml"
+	logfile = "logfile.txt"
 
 	exe_type="default.macosclangrelease"
 
 	# Fetch arguments
 	args = _args()
 
-	if args[ "verbose" ]:
-		logging.set_verbosity( logging.DEBUG )
-
-	if args[ "n_workers" ] == -1:
-		args[ "n_workers" ] = multiprocessing.cpu_count()
-
-	if len( args[ "templates" ] ) < args[ "max_templates" ]:
-		logging.warning( (
-				"Found fewer templates than number specified by "
-				"--max_templates. Automatically reducing the maximum "
-				"number of templates to match this value."
-			) )
-		args[ "max_templates" ] = 0
-
-	# Iterate over templates
+	# Iterate over templates and run structure-based alignment
 	names = []
 	for template in args[ "templates" ]:
 
 		# Remove the directory and filetype from name
 		names.append( os.path.basename( template ).split( "." )[ 0 ] )
+
+		logging.info( "Aligning and threading {}".format( names[ -1 ] ) )
 
 		# Step 1a: Run structural alignment using TM-Align
 		# Generates a grishin file for RosettaCM
@@ -550,8 +620,7 @@ def _main() -> NoReturn:
 				exe_type	
 			)
 
-	# If only a subset of templates should be used
-	# Run the command once
+	logging.info( "Setting up XML script" )
 
 	cmds = []
 	if args[ "max_templates" ] == 0:
@@ -568,16 +637,14 @@ def _main() -> NoReturn:
 			n_jobs = args[ "n_models" ] // args[ "n_workers" ]
 			if args[ "n_models" ] % args[ "n_workers" ] > i:
 				n_jobs += 1
-			cmd = _cm(
+			cmds.append( _cm(
 					xmlfile,
 					args[ "fasta" ],
 					args[ "rosetta" ],
 					n_jobs,
 					exe_type,
 					[ f"-out:prefix { i }_" ]
-				)
-			cmds.append( cmd )
-			logging.debug( "{} {}".format( i, cmd ) )
+				) )
 	else:
 		_setup_xml_subset(
 				args[ "xml" ],
@@ -586,7 +653,7 @@ def _main() -> NoReturn:
 			)
 
 		for i in range( args[ "n_models" ] ):
-			cmd = _cm(
+			cmds.append( _cm(
 					xmlfile,
 					args[ "fasta" ],
 					args[ "rosetta" ],
@@ -596,17 +663,27 @@ def _main() -> NoReturn:
 							_pick_pdbs( names, args[ "max_templates" ] ),
 							f"-out:prefix { i }_"
 						]
-				)
-			cmds.append( cmd )
-			logging.debug( "{} {}".format( i, cmd ) )
+				) )
 
+	with open( logfile, "w" ) as outfile:
+		for cmd in cmds:
+			outfile.write( cmd + "\n" )
+
+	# Multiprocessing
+	logging.info(
+			"Running {} commands across {} cores".format(
+				len( cmds ),
+				args[ "n_workers" ]
+		) )
+	_multiprocessing( args[ "n_workers" ], cmds )
 
 	# Step 5: Clean up
+	'''
 	for pdb in names:
 		_print_and_run( logging.debug, f"rm { pdb }.pdb" )
 	_print_and_run( logging.debug, f"rm { xmlfile }" )
 	_print_and_run( logging.debug, f"rm { grishinfile }" )
-	
+	'''
 if __name__ == "__main__":
 	_main()
 

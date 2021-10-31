@@ -19,7 +19,7 @@
     </FILTERS>
     <MOVERS>
         <Hybridize name="hybridize" stage1_scorefxn="stage1" stage2_scorefxn="stage2" fa_scorefxn="fullatom" batch="1" 
-		   stage1_increase_cycles="1.0" stage2_increase_cycles="1.0" chunk_insertion_weight="0.0">
+		   stage1_increase_cycles="1.0" stage2_increase_cycles="1.0" >
             <Template pdb="%%model%%" weight="1.0" cst_file="AUTO"/>
         </Hybridize>
     </MOVERS>
