@@ -85,7 +85,8 @@ def _cm_options() -> str:
 			 	"N_acetylated",
 			 	"C_methylamidated",
 			 	"MethylatedProteinCterm",
-			"-mute core scoring",
+		
+			# Reduce output to only Error/Fatal
 			"-out:level 100"
 		) )
 
