@@ -6,7 +6,6 @@
 
 import argparse
 import os
-import re
 
 from absl import logging
 
@@ -129,8 +128,8 @@ def _args() -> Tuple[ str, str, List[ str ], str, str, str, str, bool, bool ]:
 			'--xml',
 			metavar="cm.xml",
 			type=str,
-			help="(required) RosettaCM XML file",
-			required=True,
+			help="(optional) RosettaCM XML file",
+			default=f"{ os.path.dirname( __file__ ) }/cm.xml",
 			dest="xml"
 		)
 
@@ -296,11 +295,11 @@ def _main() -> NoReturn:
 		logging.set_verbosity( logging.DEBUG )
 
 	# Iterate over templates
-	
+	names = []
 	for template in args[ "templates" ]:
 
 		# Remove the directory and filetype from name
-		name = os.path.basename( template ).split( "." )[ 0 ]
+		names.append( os.path.basename( template ).split( "." )[ 0 ] )
 
 		# Step 1: Run structural alignment using TM-Align
 		# Generates a grishin file for RosettaCM
@@ -309,7 +308,7 @@ def _main() -> NoReturn:
 				args[ "pdb" ],
 				template,
 				grishinfile,
-				name
+				names[ -1 ]
 			)
 
 		# Step 2: Thread the sequence of interest onto the template
@@ -318,7 +317,7 @@ def _main() -> NoReturn:
 				args[ "fasta" ],
 				template,
 				grishinfile,
-				name,
+				names[ -1 ],
 				exe_type=exe_type				
 			)
 
@@ -327,7 +326,7 @@ def _main() -> NoReturn:
 				args[ "xml" ],
 				args[ "fasta" ],
 				args[ "rosetta" ],
-				name,
+				names[ -1 ],
 				exe_type=exe_type
 			)
 	
