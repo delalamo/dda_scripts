@@ -254,6 +254,7 @@ def _args() -> Tuple[
 
 	if args[ "n_workers" ] < 1:
 		logging.warning( "--n_workers must be positive! Setting to 1" )
+		args[ "n_workers" ] = 1
 
 	if len( args[ "templates" ] ) < args[ "max_templates" ]:
 		logging.warning( (
