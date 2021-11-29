@@ -302,7 +302,7 @@ def _tmalign_to_grishin(
 
 	# Write grishin file
 	with open( grishinfile, "w" ) as outfile:
-		outfile.write( f"## temp { name }\n" )
+		outfile.write( f"## TEMPa { name }.pdb\n" )
 		outfile.write( "#\nscores_from_program: 0\n" )
 		outfile.write( f"0 { tmalign_out[ 19 ].rstrip() }\n" )
 		outfile.write( f"0 { tmalign_out[ 21 ].rstrip() }\n" )
@@ -346,7 +346,7 @@ def _thread(
 			"-out:level 100"
 		) )
 
-	_print_and_run( logging.debug, cmd )
+	_print_and_run( logging.info, cmd )
 
 def _cm(
 		xml: str,
