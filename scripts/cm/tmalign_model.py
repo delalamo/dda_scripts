@@ -16,8 +16,8 @@ from absl import logging
 from typing import Callable, List, NoReturn, Tuple
 
 def _print_and_run(
-		fn: Callable[ [ str ], None ],
-		cmd: str
+		fn : Callable[ [ str ], None ],
+		cmd : str
 	) -> NoReturn:
 	r""" Small function for printing and calling a command
 
@@ -254,6 +254,7 @@ def _args() -> Tuple[
 
 	if args[ "n_workers" ] < 1:
 		logging.warning( "--n_workers must be positive! Setting to 1" )
+		args[ "n_workers" ] = 1
 
 	if len( args[ "templates" ] ) < args[ "max_templates" ]:
 		logging.warning( (
@@ -266,11 +267,11 @@ def _args() -> Tuple[
 	return args
 
 def _tmalign_to_grishin(
-		tmalign: str,
-		pdb1: str,
-		pdb2: str,
+		tmalign : str,
+		pdb1 : str,
+		pdb2 : str,
 		grishinfile : str,
-		name: str
+		name : str
 	) -> NoReturn:
 	r""" Perform a structural alignment of reference to template
 
@@ -313,12 +314,12 @@ def _tmalign_to_grishin(
 			logging.debug( "{}: {}".format( i, line.strip() ) )
 
 def _thread(
-		rosetta: str,
-		fasta: str,
-		template: str,
-		grishinfile: str,
-		name: str,
-		exe_type: str
+		rosetta : str,
+		fasta : str,
+		template : str,
+		grishinfile : str,
+		name : str,
+		exe_type : str
 	) -> NoReturn:
 	r""" Uses Rosetta to thread the sequence of one protein onto
 	structure of another
@@ -349,12 +350,12 @@ def _thread(
 	_print_and_run( logging.info, cmd )
 
 def _cm(
-		xml: str,
-		fasta: str,
-		rosetta: str,
-		n_models: int,
-		exe_type: str,
-		extra_options: List[ str ]
+		xml : str,
+		fasta : str,
+		rosetta : str,
+		n_models : int,
+		exe_type : str,
+		extra_options : List[ str ]
 
 	) -> str:
 	r""" Uses Rosetta to close gaps and refine threaded models
@@ -386,9 +387,9 @@ def _cm(
 		) )
 
 def _write_xml(
-		in_xml: str,
-		lines: List[ str ],
-		out_xml: str
+		in_xml : str,
+		lines : List[ str ],
+		out_xml : str
 	) -> NoReturn:
 	r""" Generates an XML file for multi-template modeling
 
@@ -417,9 +418,9 @@ def _write_xml(
 			logging.debug( "{}: {}".format( i, line.rstrip() ) )
 
 def _setup_xml_all_templates(
-		in_xml: str,
-		pdbs: List[ str ],
-		out_xml: str
+		in_xml : str,
+		pdbs : List[ str ],
+		out_xml : str
 	) -> NoReturn:
 	r""" Generates an XML file for multi-template modeling
 
@@ -440,9 +441,9 @@ def _setup_xml_all_templates(
 	
 
 def _setup_xml_subset(
-		in_xml: str,
-		n_pdbs: int,
-		out_xml: str
+		in_xml : str,
+		n_pdbs : int,
+		out_xml : str
 	) -> NoReturn:
 	r""" Generates an XML file for multi-template modeling
 
@@ -462,9 +463,9 @@ def _setup_xml_subset(
 	_write_xml( in_xml, pdb_lines, out_xml )
 
 def _pick_pdbs(
-		names: List[ str ],
-		n_templates: int,
-		allow_duplicates: bool=True
+		names : List[ str ],
+		n_templates : int,
+		allow_duplicates : bool=True
 	) -> str:
 	r""" Randomly picks PDB files and write command-line options
 
@@ -504,8 +505,8 @@ def _run_cmd(
 	return True
 
 def _multiprocessing(
-		n_workers: int,
-		cmds: List[ str ]
+		n_workers : int,
+		cmds : List[ str ]
 	) -> NoReturn:
 	r""" Main function that manages all RosettaCM runs
 	Code templated from journaldev.com
