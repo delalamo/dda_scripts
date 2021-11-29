@@ -91,7 +91,7 @@ def _cm_options() -> str:
 		) )
 
 def _args() -> Tuple[
-		str, str, List[ str ], str, str, str, str, bool, bool, int, int
+		str, str, List[ str ], str, str, str, str, bool, int, int
 	]:
 	r""" Process input arguments for alignment
 
@@ -251,6 +251,7 @@ def _args() -> Tuple[
 		logging.set_verbosity( logging.DEBUG )
 	else:
 		logging.set_verbosity( logging.INFO )
+	del args[ "verbose" ]
 
 	if args[ "n_workers" ] < 1:
 		logging.warning( "--n_workers must be positive! Setting to 1" )
@@ -549,7 +550,7 @@ def _multiprocessing(
 def _main() -> NoReturn:
 	r""" Main function for reading and writing outputs.
 	During execution, several temporary files will be written
-	in the current working directory. These will then be deleter
+	in the current working directory. These will then be deleted
 	during cleanup.
 
 	Parameters
