@@ -1,8 +1,8 @@
 # Author: Diego del Alamo - diego.delalamo@gmail.com
 # License: None
 
-# This script threads a protein sequence onto a structure using
-# TM-Align and Rosetta. 
+# This script runs principal component analysis on a set of 
+# 	protein models after structural alignment by TMAlign
 
 import argparse
 import Bio.PDB
