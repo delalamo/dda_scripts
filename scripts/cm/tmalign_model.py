@@ -91,7 +91,7 @@ def _cm_options() -> str:
 		) )
 
 def _args() -> Tuple[
-		str, str, List[ str ], str, str, str, str, bool, bool, int, int
+		str, str, List[ str ], str, str, str, str, bool, int, int
 	]:
 	r""" Process input arguments for alignment
 
@@ -251,9 +251,11 @@ def _args() -> Tuple[
 		logging.set_verbosity( logging.DEBUG )
 	else:
 		logging.set_verbosity( logging.INFO )
+	del args[ "verbose" ]
 
 	if args[ "n_workers" ] < 1:
 		logging.warning( "--n_workers must be positive! Setting to 1" )
+		args[ "n_workers" ] = 1
 
 	if len( args[ "templates" ] ) < args[ "max_templates" ]:
 		logging.warning( (
@@ -302,7 +304,7 @@ def _tmalign_to_grishin(
 
 	# Write grishin file
 	with open( grishinfile, "w" ) as outfile:
-		outfile.write( f"## temp { name }\n" )
+		outfile.write( f"## TEMPa { name }.pdb\n" )
 		outfile.write( "#\nscores_from_program: 0\n" )
 		outfile.write( f"0 { tmalign_out[ 19 ].rstrip() }\n" )
 		outfile.write( f"0 { tmalign_out[ 21 ].rstrip() }\n" )
@@ -346,7 +348,7 @@ def _thread(
 			"-out:level 100"
 		) )
 
-	_print_and_run( logging.debug, cmd )
+	_print_and_run( logging.info, cmd )
 
 def _cm(
 		xml : str,
@@ -548,7 +550,7 @@ def _multiprocessing(
 def _main() -> NoReturn:
 	r""" Main function for reading and writing outputs.
 	During execution, several temporary files will be written
-	in the current working directory. These will then be deleter
+	in the current working directory. These will then be deleted
 	during cleanup.
 
 	Parameters
