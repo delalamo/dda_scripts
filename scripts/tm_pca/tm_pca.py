@@ -123,6 +123,14 @@ def _args() -> Tuple[ List[ str ], str, List[ int ], str, str ]:
 			dest="verbose"
 		)
 
+	parser.add_argument(
+			'--cutoff',
+			type=float,
+			default=0.0,
+			help="(optional) Set TM-score cutoff for alignment",
+			dest="cutoff"
+		)
+
 	args = parser.parse_args()
 
 	args = { arg: getattr( args, arg ) for arg in vars( args ) }
@@ -139,8 +147,8 @@ def _args() -> Tuple[ List[ str ], str, List[ int ], str, str ]:
 				args[ "ref" ]
 			) )
 
-	if "res_to_ignore" in args:
-		if "res_to_keep" in args:
+	if args[ "ignore" ] is not None:
+		if args[ "keep" ] is not None:
 			logging.warning( "Both --res_to_keep and --res_to_ignore options "
 					"used! Ignoring --res_to_ignore."
 				)
@@ -148,6 +156,9 @@ def _args() -> Tuple[ List[ str ], str, List[ int ], str, str ]:
 			ref_r = list( read_pdb( args[ "ref" ] ).keys() )
 			args[ "keep" ] = [ r for r in ref_r if r not in args[ "ignore" ] ]
 		del args[ "ignore" ]
+
+	elif args[ "keep" ] is None:
+		args[ "keep" ] = list( read_pdb( args[ "ref" ] ).keys() )
 
 	assert( len( args[ "models" ] ) > 1 )
 
@@ -196,15 +207,16 @@ def read_pdb(
 			res_xyz[ res ][ i * 3 : i * 3 + 3 ] = residue[ atom ].coord
 
 	if not isempty and len( res_list ) > 0:
-		absl.warning( "\n".join( ( "Some residues not read or absent from PDB!",
+		logging.warning( "\n".join( ( "Some residues not read or absent from PDB!",
 				"\tPDB file:\t{},".format( pdbfile ),
-				"\tResidues: {}".format( " ".join( res_list ) )
+				"\tResidues: {}".format( " ".join( map( str, res_list ) ) )
 			) ) )
 
 	return res_xyz
 
 def _pca(
 		modelpath : str,
+		model_tms : Dict[ str, float ],
 		res : List[ int ] = [],
 		atoms : List[ str ] = [ "CA" ]
 	) -> NoReturn:
@@ -215,7 +227,9 @@ def _pca(
 	Parameters
 	----------
 	modelpath : Directory with aligned PDBs to run PCA
+	model_tms : Dictionary of TMscores for each model
 	res : Residues to use
+	atoms : Atoms to use (default: CA only)
 
 	Returns
 	----------
@@ -223,14 +237,14 @@ def _pca(
 
 	"""
 
-	models = [ x for x in os.listdir( modelpath ) if x.endswith( ".pdb" ) ]
+	models = model_tms.keys()
 	print( f"Found { len( models ) } models" )
 
 	all_xyz = []
 
 	# Read XYZ values of each PDB file
 	for file in models:
-		xyz_vals = read_pdb( os.path.join( modelpath, file ), res ).values()
+		xyz_vals = read_pdb( os.path.join( modelpath, file ), res, atoms ).values()
 		all_xyz.append( np.concatenate( list( xyz_vals ) ) )
 
 	all_xyz = np.vstack( all_xyz )
@@ -244,7 +258,46 @@ def _pca(
 		) )
 
 	for model, ( x, y ) in zip( models, new_xy ):
-		logging.info( "\t{}: {:2f}, {:2f}".format( model, x, y ) )
+		if model not in model_tms:
+			out = ",".join( map( str, ( model, x, y, 0.0 ) ) )
+		else:
+			out = ",".join( map( str, ( model, x, y, model_tms[ model ] ) ) )
+		logging.info( "\t" + out )
+
+def calc_tmscore(
+		tmalign : str,
+		pdb1 : str,
+		pdb2 : str
+	) -> float:
+	r""" Executes TM-Align to calculate TM-score; does not align.
+	TODO: This function shares code with scripts/cm/tmalign_model.py
+	In the future I need to combine these two.
+
+	Parameters
+	----------
+	tmalign : Location of executable
+	pdb1 : First model to align
+	pdb2 : Second model to align
+
+	Returns
+	----------
+	TM-score (float ranging from 0 to 1)
+	"""
+
+	cmd = " ".join( ( tmalign, pdb1, pdb2 ) )
+	logging.debug( cmd )
+
+	# Print command here
+	tms = []
+	for i, line in enumerate( os.popen( cmd ).read().splitlines() ):
+		logging.debug( "{}: {}".format( i, line.strip() ) )
+		sl = line.split()
+		
+		# Failsafe in case the line is empty
+		if len( sl ) >= 2:
+			if sl[ 0 ] == "TM-score=":
+				tms.append( float( sl[ 1 ] ) )
+	return max( tms )
 
 def _main( outpath : str = "temp" ) -> NoReturn:
 	r""" Main function for reading and writing outputs.
@@ -268,33 +321,37 @@ def _main( outpath : str = "temp" ) -> NoReturn:
 	if not os.path.isdir( outpath ):
 		os.mkdir( outpath )
 
+	model_tms = {}
+
 	# Iterate over templates and run structure-based alignment
 	for model in args[ "models" ]:
 
-		name = os.path.basename( model ).split( "." )[ 0 ]
+		name = "aligned_" + os.path.basename( model )
+		outname = os.path.join( outpath, name )
 
-		outname = os.path.join( outpath, f"aligned_{ name }.pdb" )
+		logging.debug( "Aligning {}; output to {}".format( model, outname ) )
 
-		if os.path.isfile( outname ):
-			logging.debug( "{} exists, skipping alignment".format( outname ) )
+		tm = calc_tmscore( args[ "tmalign" ], model, args[ "ref" ] )
 
-		else:
-			logging.debug( "Aligning {}; output to {}".format( model, outname ) )
-
+		if tm > args[ "cutoff" ]:
+			model_tms[ name ] = tm
 			cmd = " ".join( (
-					args[ "tmalign" ],
-					model,
-					args[ "ref" ],
-					"-o",
-					outname					
-				) )
+				args[ "tmalign" ],
+				model,
+				args[ "ref" ],
+				"-o",
+				outname					
+			) )
 
 			if not args[ "verbose" ]:
 				cmd += " > /dev/null"
 
-			_print_and_run( logging.debug, cmd )
-
-	_pca( outpath )
+			if not os.path.exists( outname ):
+				_print_and_run( logging.debug, cmd )
+			else:
+				logging.debug( "Already found model" )
+				
+	_pca( outpath, model_tms, args[ "keep" ] )
 
 if __name__ == "__main__":
 	_main( "temp" )
