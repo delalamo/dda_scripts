@@ -156,7 +156,7 @@ def xyz_energy_clash(
 		cb,
 		n,
 		neighbors,
-		calc_clashes = True
+		clashes = True
 	):
 	r""" Calculate VDW energy between two atoms using 6/12 potential
 	
@@ -181,7 +181,7 @@ def xyz_energy_clash(
 	ca = jnp.array( ca, dtype=jnp.float32 )
 	xyz = jnp.array( xyz, dtype=jnp.float32 )
  
-  	if calc_clashes:
+	if clashes:
 		e_clash = vdw_batch( xyz, neighbors ).sum()
 	else:
 		e_clash = 0
