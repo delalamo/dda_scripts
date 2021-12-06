@@ -120,9 +120,9 @@ def set_params(
 	params = {}
 
 	for r, c in residues:
-		params[ f"{ r }_{ c }_x" ] = np.random.uniform( low=-25, high=25 )
-		params[ f"{ r }_{ c }_y" ] = np.random.uniform( low=-25, high=25 )
-		params[ f"{ r }_{ c }_z" ] = np.random.uniform( low=-25, high=25 )
+		params[ f"{ r }_{ c }_x" ] = np.random.uniform( low=-250, high=250 )
+		params[ f"{ r }_{ c }_y" ] = np.random.uniform( low=-250, high=250 )
+		params[ f"{ r }_{ c }_z" ] = np.random.uniform( low=-250, high=250 )
 
 	return params
 
@@ -145,7 +145,7 @@ def vdw(
 	"""
 
 	d = jnp.linalg.norm( x1 - x2 )
-	return -0.2 * ( ( 4. / d ) ** 12. - ( 4. / d ) ** 6 )
+	return -0.2 * ( ( 4. / d ) ** 12. - ( 4. / d ) ** 6. )
 
 vdw_batch = vmap( vdw, in_axes=( None, 0 ) )
 
