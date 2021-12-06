@@ -332,7 +332,6 @@ def _main( outpath : str = "temp" ) -> NoReturn:
 		logging.debug( "Aligning {}; output to {}".format( model, outname ) )
 
 		tm = calc_tmscore( args[ "tmalign" ], model, args[ "ref" ] )
-
 		if tm > args[ "cutoff" ]:
 			model_tms[ name ] = tm
 			cmd = " ".join( (
