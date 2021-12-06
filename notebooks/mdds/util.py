@@ -5,7 +5,7 @@ import jax.numpy as jnp
 
 from jax import vmap
 
-from typing import Dict, Tuple
+from typing import Dict, List, Tuple
 
 # TODO: Static initializations wherever possible
 
@@ -214,4 +214,3 @@ def xyz_energy_clash(
 	return e_clash + e_d + e_theta + e_phi
 
 
-	
