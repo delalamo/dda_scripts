@@ -67,7 +67,7 @@ def calc_clashes(
 
 	clashing_atoms = []
 	for atom in model.get_atoms():
-		if "H" in atom.name:
+		if atom.name not in [ "CA", "CB", "O", "C", "N" ]:
 			continue
 		if np.linalg.norm( atom.coord - xyz_ca ) < dist:
 			clashing_atoms.append( atom.coord )
