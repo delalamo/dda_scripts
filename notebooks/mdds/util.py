@@ -149,7 +149,6 @@ def vdw(
 
 vdw_batch = vmap( vdw, in_axes=( None, 0 ) )
 
-@jit
 def xyz_energy_clash(
 		xyz,
 		ca,
