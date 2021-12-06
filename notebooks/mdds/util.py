@@ -3,6 +3,7 @@ import Bio.PDB
 import numpy as np
 import jax.numpy as jnp
 
+from jax import jit
 from jax import vmap
 
 from typing import Dict, List, Tuple
