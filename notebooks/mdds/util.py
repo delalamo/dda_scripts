@@ -48,7 +48,7 @@ def calc_clashes(
 		model : Bio.PDB.Structure,
 		dist : float
 	) -> List[ np.array ]:
-	r""" Fetch all atoms of a type from model
+	r""" Returns a list of atoms that fall within a cutoff
 	
 	Parameters
 	----------
@@ -78,7 +78,7 @@ def get_positions(
 		headers : List[ str ],
 		residues : List[ Tuple[ int, str ] ]
 	) -> Dict[ Tuple[ int, str ], List[ float ] ]:
-	r""" Fetch all atoms of a type from model
+	r""" Get position of XYZ coordinates for a given residue
 	
 	Parameters
 	----------
@@ -131,7 +131,7 @@ def vdw(
 		x1 : np.array,
 		x2 : np.array
 	) -> float:
-	r""" Calculate VDW energy between two atoms using 6/12 potential
+	r""" Calculate VDW energy between two atoms (LJ 6/12 potential)
 	
 	Parameters
 	----------
