@@ -193,6 +193,12 @@ def read_pdb(
 	# Iterate over each residue
 	pdb = Bio.PDB.PDBParser().get_structure( "TEMP", pdbfile )
 	for residue in pdb.get_residues():
+
+		# To check for heteroatoms (i.e. not part of sequence)
+		hetatm = residue.get_id()[ 0 ].strip()
+		if hetatm:
+			continue
+			
 		res = residue.get_id()[ 1 ]
 
 		# Exit condition in case residue is not of interest
