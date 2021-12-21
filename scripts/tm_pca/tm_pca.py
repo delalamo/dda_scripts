@@ -202,9 +202,9 @@ def read_pdb(
 		res = residue.get_id()[ 1 ]
 
 		# Exit condition in case residue is not of interest
-		if res not in res_list and len( res_list ) > 0:
+		if res not in res_list and not isempty:
 			continue
-		elif res in res_list and len( res_list ) > 0 :
+		elif res in res_list and not isempty:
 			res_list.remove( res )
 
 		# In case multiple atoms are of interest
