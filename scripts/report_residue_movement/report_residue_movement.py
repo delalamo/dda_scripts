@@ -243,23 +243,21 @@ def _main() -> NoReturn:
 	"""
 
 	# Setting temporary names
+	c1, c2 = "Residue", "Movement (CA)"
+	df = pd.DataFrame( columns=[ c1, c2 ] )
+
 	args = _args()
-
 	outname = _tmalign( args[ "tmalign" ], args[ "pdb1" ], args[ "pdb2" ] )
-	dXYZ = _calc_changes( outname, args[ "pdb2" ] )
 
-	df = pd.DataFrame( columns=[ "Residue", "Movement (CA)" ] )
-	for res, xyz in dXYZ.items():
-		df = df.append( { "Residue": res, "Movement (CA)": xyz },
-			ignore_index=True )
+	for res, xyz in _calc_changes( outname, args[ "pdb2" ] ).items():
+		df = df.append( { c1: res, c2: xyz }, ignore_index=True )
+	
+	# Clean up and save
 	df[ "Residue" ] = df[ "Residue" ].astype( int )
-	df = df.set_index( "Residue", drop=True )
-	df.to_csv( args[ "outname" ] )
+	df.set_index( "Residue", drop=True ).to_csv( args[ "outname" ] )
 
-
+	# Remove temporary variable
 	os.system( f"rm { outname }" )
-
-
 
 if __name__ == "__main__":
 	_main()
