@@ -6,6 +6,7 @@
 
 import argparse
 import Bio.PDB
+import copy
 import numpy as np
 import os
 
@@ -190,6 +191,8 @@ def read_pdb(
 
 	isempty = len( res_list ) == 0
 
+	residues_left = copy.deepcopy( res_list )
+
 	# Iterate over each residue
 	pdb = Bio.PDB.PDBParser().get_structure( "TEMP", pdbfile )
 	for residue in pdb.get_residues():
@@ -202,33 +205,32 @@ def read_pdb(
 		res = residue.get_id()[ 1 ]
 
 		# Exit condition in case residue is not of interest
-		if res not in res_list and not isempty:
+		if res not in residues_left and not isempty:
 			continue
-		elif res in res_list and not isempty:
-			res_list.remove( res )
+		elif res in residues_left and not isempty:
+			residues_left.remove( res )
 
 		# In case multiple atoms are of interest
 		res_xyz[ res ] = np.zeros( ( 3 * len( atoms ) ) )
 		for i, atom in enumerate( atoms ):
 			res_xyz[ res ][ i * 3 : i * 3 + 3 ] = residue[ atom ].coord
 
-	if not isempty and len( res_list ) > 0:
+	if not isempty and len( residues_left ) > 0:
 		logging.warning( "\n".join( ( "Some residues not read or absent from PDB!",
 				"\tPDB file:\t{},".format( pdbfile ),
-				"\tResidues: {}".format( " ".join( map( str, res_list ) ) )
+				"\tResidues: {}".format( " ".join( map( str, residues_left ) ) )
 			) ) )
 
 	return res_xyz
 
-def _pca(
+def _model_xyzs(
 		modelpath : str,
 		model_tms : Dict[ str, float ],
 		res : List[ int ] = [],
 		atoms : List[ str ] = [ "CA" ]
-	) -> NoReturn:
-	r""" Runs PCA on all PDB files in the provided path.
-	NOTE: Does not check if the sequences are the same, only that their
-	lengths match!
+	) -> np.ndarray:
+	r""" Extracts atomic coordinates from a set of models
+	Returns a numpy array with coordinates organized
 
 	Parameters
 	----------
@@ -242,9 +244,8 @@ def _pca(
 	None
 
 	"""
-
 	models = model_tms.keys()
-	print( f"Found { len( models ) } models" )
+	logging.info( "Found {} models".format( len( models ) ) )
 
 	all_xyz = []
 
@@ -253,8 +254,25 @@ def _pca(
 		xyz_vals = read_pdb( os.path.join( modelpath, file ), res, atoms ).values()
 		all_xyz.append( np.concatenate( list( xyz_vals ) ) )
 
-	all_xyz = np.vstack( all_xyz )
-	print( all_xyz.shape )
+	return np.vstack( all_xyz )
+
+def _pca(
+		all_xyz : np.ndarray,
+		model_names : List
+	) -> PCA:
+	r""" Runs PCA on all PDB files in the provided path.
+	NOTE: Does not check if the sequences are the same, only that their
+	lengths match!
+
+	Parameters
+	----------
+	all_xyz : Numpy array with XYZ coordinates of all atoms of interest
+
+	Returns
+	----------
+	pca : SKLearn PCA object
+
+	"""
 
 	pca = PCA( n_components = 2 )
 	new_xy = pca.fit_transform( all_xyz )
@@ -263,12 +281,11 @@ def _pca(
 			pca.explained_variance_ratio_[ 1 ]
 		) )
 
-	for model, ( x, y ) in zip( models, new_xy ):
-		if model not in model_tms:
-			out = ",".join( map( str, ( model, x, y, 0.0 ) ) )
-		else:
-			out = ",".join( map( str, ( model, x, y, model_tms[ model ] ) ) )
+	for model, ( x, y ) in zip( model_names, new_xy ):
+		out = ",".join( map( str, ( model, x, y ) ) )
 		logging.info( "\t" + out )
+
+	return pca
 
 def calc_tmscore(
 		tmalign : str,
@@ -357,7 +374,8 @@ def _main( outpath : str = "temp" ) -> NoReturn:
 			else:
 				logging.debug( "Already found model" )
 				
-	_pca( outpath, model_tms, args[ "keep" ] )
+
+	_pca( _model_xyzs( outpath, model_tms, args[ "keep" ] ), model_tms.keys() )
 
 if __name__ == "__main__":
 	_main( "temp" )
