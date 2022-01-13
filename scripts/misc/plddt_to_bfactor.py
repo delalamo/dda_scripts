@@ -30,8 +30,6 @@ def plddt_to_b(
 
 	"""
 
-	if
-
 	rmsf = 1.5 * np.exp( 4 * ( 0.7 - ( plddt / maxval ) ) )
 	return ( 8. / 3. ) * ( np.pi ** 2 ) * ( rmsf ** 2 )
 
