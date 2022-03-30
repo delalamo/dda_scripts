@@ -94,7 +94,7 @@ def _args() -> Tuple[List[str], str, List[int], str, str]:
         "-r",
         "--res_to_keep",
         metavar="1 2 3 ... N",
-        type=int,
+        type=str,
         nargs="+",
         help=(
             "(optional) Residues to analyze with PCA. Default: all residues."
@@ -106,7 +106,7 @@ def _args() -> Tuple[List[str], str, List[int], str, str]:
     parser.add_argument(
         "--res_to_ignore",
         metavar="1 2 3 ... N",
-        type=int,
+        type=str,
         nargs="+",
         help=(
             "(optional) Residues to ignore during PCA. "
@@ -156,7 +156,15 @@ def _args() -> Tuple[List[str], str, List[int], str, str]:
                 "used! Ignoring --res_to_ignore."
             )
         else:
-            ref_r = list(read_pdb(args["ref"]).keys())
+            ref_r = []
+            for r in args[ "ignore" ]:
+                if "-" in r:
+                    start_res, stop_res = r.split( "-" )
+                    ref_r.extend( range( int( start_res ), int( stop_res ) + 1o ) )
+                else:
+                    ref_r.append( int( r ) )
+
+            #ref_r = list(read_pdb(args["ref"]).keys())
             args["keep"] = [r for r in ref_r if r not in args["ignore"]]
         del args["ignore"]
 
