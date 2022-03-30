@@ -13,28 +13,6 @@ from absl import logging
 
 from typing import Callable, Dict, List, NoReturn, Tuple
 
-"""
-leut - 2a65/3tt3
-betp - 4ain/4llh
-lat1 - 6irs/7dsq
-dranramp - 6d9w/6d9i
-sert - 5i6x/6dzz
-mhp1 - 2jln/2x79
-"""
-
-# Ask for file and chain of struct 1
-# Ask for file and chain of struct 2
-# Use Bio PDB to isolate the chains and use TMAlign align the two
-# Iterate over residues that match
-# Print net movement of residues
-
-# Author: Diego del Alamo - diego.delalamo@gmail.com
-# License: None
-
-# This script threads a protein sequence onto a structure using
-# TM-Align and Rosetta.
-
-
 def _print_and_run(fn: Callable[[str], None], cmd: str) -> NoReturn:
     r"""Small function for printing and calling a command
 
