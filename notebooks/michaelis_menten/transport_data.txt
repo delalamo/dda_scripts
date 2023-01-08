@@ -1,0 +1,83 @@
+
+Assay Definition
+
+Assay Description:
+Basic CPM assay
+Assay Type: CPM
+Report Name: Report1
+Output Data Path: C:\Packard\Tricarb\Results\Default\3h_cpm\20201130_1108
+Raw Results Path: C:\Packard\Tricarb\Results\Default\3h_cpm\20201130_1108\20201130_1108.results
+Assay File Name: C:\Packard\TriCarb\Assays\3h_cpm.lsa
+
+
+Count Conditions
+
+Nuclide: 3H                   
+   Quench Indicator: tSIE/AEC
+   External Std Terminator (sec): 0.5 2s%
+   Pre-Count Delay (min): 0.00
+Quench Set: n/a               
+Count Time (min): 1.00
+Count Mode: Normal                                          
+Assay Count Cycles: 1         Repeat Sample Count: 1        
+#Vials/Sample: 1              Calculate % Reference: Off    
+
+
+Background Subtract
+
+Background Subtract: Off
+Low CPM Threshold: Off
+2 Sigma % Terminator: Off
+
+Regions         LL       UL
+A              0.0     18.6
+B              2.0     18.6
+C              0.0      0.0
+
+
+Count Corrections
+
+Static Controller: On         Luminescence Correction: n/a  
+Colored Samples: n/a          Heterogeneity Monitor: n/a    
+Coincidence Time (nsec): 18   Delay Before Burst (nsec): 75 
+
+
+
+Cycle 1 Results
+  S#  Count Time    CPMA    CPMB      SIS     tSIE  MESSAGES
+  29        1.00     543     470    58.41   562.71          
+  30        1.00    5477    4986    18.87   560.35          
+  31        1.00    4912    4412    15.96   566.69          
+  32        1.00    5564    5134    14.11   551.85          
+  33        1.00     345     300    85.38   562.07          
+  34        1.00    3048    2839    18.50   552.84          
+  35        1.00    4462    4107    16.34   556.97          
+  36        1.00    4477    4108    17.60   550.11          
+  37        1.00     183     141   101.66   552.49          
+  38        1.00    3148    2887    14.57   562.63          
+  39        1.00    3819    3498    19.94   558.04          
+  40        1.00    3415    3110    15.35   559.62          
+  41        1.00     239     178    40.51   564.31          
+  42        1.00    2632    2390    19.27   550.28          
+  43        1.00    2352    2152    13.31   546.97          
+  44        1.00    2137    1932    21.29   558.83          
+  45        1.00     183     132   109.68   556.41          
+  46        1.00    1394    1249    27.80   560.78          
+  47        1.00    1559    1417    24.97   559.22          
+  48        1.00    1651    1514    18.25   551.32          
+  49        1.00     187     151    91.36   553.43          
+  50        1.00     759     680    35.77   552.55          
+  51        1.00     969     832    26.91   553.15          
+  52        1.00    1159    1025    56.42   562.07          
+  53        1.00     544     365    41.82   556.65          
+  54        1.00     140     102   108.22   557.92          
+  55        1.00     122      90   160.35   565.41          
+  56        1.00     115      89    84.68   562.51          
+  85        1.00  424437  393807    12.45   579.48          
+  86        1.00   79431   72742    11.82   588.04          
+  87        1.00   16535   15242    13.17   576.90          
+  88        1.00    3554    3290    19.85   576.73          
+  89        1.00     804     736    32.22   575.96          
+  90        1.00     213     178   161.91   569.78          
+  91        1.00      47      34   262.00   576.38          
+  92        1.00      32      23   581.81   575.89          
