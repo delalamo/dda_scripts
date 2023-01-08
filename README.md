@@ -16,4 +16,4 @@ This repository contains various scripts to tackle some of the structural biolog
 
 ### Extras
 
-* **AAT_OmegaFold:** A series of protein structural models generated with OmegaFold as part of a public demonstration (see [this Twitter thread](https://twitter.com/DdelAlamo/status/1571483783672791042)).
+* **AAT_OmegaFold:** A series of protein structural models generated with [OmegaFold](https://www.biorxiv.org/content/10.1101/2022.07.21.500999v1) as part of a public demonstration (see [this Twitter thread](https://twitter.com/DdelAlamo/status/1571483783672791042)).
